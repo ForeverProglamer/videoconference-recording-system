@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:  
+  backend:
+    container_name: backend
+    build:
+      context: backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: true
+    # command: tail -f /dev/null
+    restart: always
+    depends_on:
+      - database
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+  
+  database:
+    container_name: db
+    image: postgres:15.3-alpine3.18
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./database/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql 
+volumes:
+  postgres:
