@@ -2,6 +2,8 @@ version: "3.8"
 
 services:  
   backend:
+    networks:
+      selenoid: null
     container_name: backend
     build:
       context: backend
@@ -12,6 +14,7 @@ services:
     restart: always
     depends_on:
       - database
+      - selenoid
     env_file: .env
     ports:
       - "8000:8000"
@@ -19,6 +22,8 @@ services:
       - ./backend:/app
   
   database:
+    networks:
+      selenoid: null
     container_name: db
     image: postgres:15.3-alpine3.18
     restart: always
@@ -26,5 +31,47 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
       - ./database/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql 
+    
+  bots-orchestrator:
+    networks:
+        selenoid: null
+    container_name: orchestrator
+    build:
+      context: bots-orchestrator
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: true
+    depends_on:
+      - database
+      - selenoid
+    restart: always
+    env_file:
+      - .env
+      - ./bots-orchestrator/.env
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./bots-orchestrator:/app
+    
+  selenoid:
+    networks:
+      selenoid: null
+    image: aerokube/selenoid:1.10.11
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/home/ebubuntu/projects/diploma/selenoid/config:/etc/selenoid"
+      - "/home/ebubuntu/projects/diploma/selenoid/videos:/opt/selenoid/video"
+      - "/home/ebubuntu/projects/diploma/selenoid/logs:/opt/selenoid/logs"
+    environment:
+      - OVERRIDE_VIDEO_OUTPUT_DIR=/home/ebubuntu/projects/diploma/selenoid/videos
+    command: ["-conf", "/etc/selenoid/browsers.json", "-video-output-dir", "/opt/selenoid/video", "-log-output-dir", "/opt/selenoid/logs", "-container-network", "selenoid"]
+    ports:
+      - "4444:4444"
+
+networks:
+  selenoid:
+    external: true
+    name: selenoid
+
 volumes:
   postgres:
