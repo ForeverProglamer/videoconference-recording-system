@@ -9,9 +9,10 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.errors import Error
 from pypika import Table, PostgreSQLQuery as Query
 
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserBase, SessionBase, UserInDb
 from app.schemas.conference import ConferenceCreate, ConferenceRead, Recording, SettingsBase
-from app.utils import generate_recording_filename
+from app.utils.auth import hash_password
+from app.utils.recording import generate_recording_filename
 
 POSTGRES_DB_CONFIG = {
     'host': os.getenv('POSTGRES_HOST'),
@@ -29,6 +30,7 @@ FuncToDecorate = Callable[[connection, P.args, P.kwargs], T]
 log = logging.getLogger(__name__)
 
 users = Table('users')
+sessions = Table('sessions')
 conferences = Table('conferences')
 conference_settings = Table('conference_settings')
 recordings = Table('recordings')
@@ -61,15 +63,65 @@ def pg_connection(
 
 @pg_connection()
 def create_user(conn: connection, user: UserCreate) -> UserRead:
+    user_ = user.copy(update={'password': hash_password(user.password)})
     try:
         with conn.cursor() as cur:
             cur.execute(Query
                 .into(users)
-                .columns(*user.dict().keys())
-                .insert(*user.dict().values())
+                .columns(*user_.dict().keys())
+                .insert(*user_.dict().values())
                 .returning(users.id).get_sql()
             )
-            return UserRead(id=cur.fetchone()[0], **user.dict())
+
+            return UserRead(**user_.dict())
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def get_user(conn: connection, user: UserBase) -> UserInDb | None:
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(Query
+                .from_(users)
+                .select(users.star)
+                .where(users.login == user.login).get_sql()
+            )
+
+            user_data = cur.fetchone()
+            if not user_data:
+                return None
+            return UserInDb(**user_data)
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def create_session(conn: connection, user: UserInDb) -> SessionBase:
+    session = SessionBase()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(Query
+                .into(sessions)
+                .columns(
+                    sessions.user_id, sessions.token, sessions.expires_at
+                )
+                .insert(user.id, session.token, session.expires_at).get_sql()
+            )
+            return session
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def delete_session(conn: connection, token: str) -> None:
+    try:
+        with conn.cursor() as cur:
+            cur.execute(Query
+                .from_(sessions)
+                .delete()
+                .where(sessions.token == token).get_sql()
+            )
     except Error as e:
         log.exception(e)
 
