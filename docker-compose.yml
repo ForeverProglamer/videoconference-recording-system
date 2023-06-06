@@ -27,11 +27,13 @@ services:
     container_name: db
     image: postgres:15.3-alpine3.18
     restart: always
+    ports:
+      - "5432:5432"
     env_file: .env
     volumes:
       - postgres:/var/lib/postgresql/data
-      - ./database/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql 
-    
+      - ./database/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+
   bots-orchestrator:
     networks:
         selenoid: null
@@ -52,7 +54,24 @@ services:
       - "7000:7000"
     volumes:
       - ./bots-orchestrator:/app
-    
+  
+  scheduler:
+    networks:
+      selenoid: null
+    container_name: scheduler
+    build:
+      context: scheduler
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: true
+    restart: always
+    depends_on:
+      - database
+      - bots-orchestrator
+    env_file: .env
+    volumes:
+      - ./scheduler:/app
+
   selenoid:
     networks:
       selenoid: null
