@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI
+from starlette.staticfiles import StaticFiles
 
 from app.routers import api, pages
 
@@ -13,3 +14,5 @@ logging.basicConfig(
 
 app.include_router(api.router)
 app.include_router(pages.router)
+
+app.mount('/static', StaticFiles(directory='static'), name='static')
