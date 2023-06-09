@@ -64,7 +64,7 @@ class ConferenceBase(Model):
     title: str
     invite_link: str
     start_time: datetime
-    end_time: datetime
+    end_time: datetime | None = None
     platform: ConferencingPlatform
     settings: SettingsBase
 
@@ -75,7 +75,6 @@ class ConferenceCreate(ConferenceBase):
 
 class ConferenceRead(ConferenceBase):
     id: int
-    user_id: int
     recording: Recording
 
 
@@ -83,6 +82,5 @@ class ConferenceUpdate(ConferenceBase):
     title: str | None = None
     invite_link: str | None = None
     start_time: datetime | None = None
-    end_time: datetime | None = None
     platform: ConferencingPlatform | None = None
     settings: SettingsUpdate | None = None

@@ -54,14 +54,17 @@ def sing_in(
             'Incorrect password'
         )
 
-    session = db.create_session(user_in_db)
+    session = db.get_session(user_in_db)
+
+    if not session:
+        session = db.create_session(user_in_db)
 
     response = RedirectResponse('/', status.HTTP_302_FOUND)
 
     response.set_cookie(
         key='token',
         value=session.token,
-        expires=session.expires_at.astimezone(),
+        expires=session.expires_at.astimezone(),    
         httponly=True,
         samesite='strict'
     )
@@ -84,8 +87,7 @@ def sign_out(token: Token = None) -> RedirectResponse:
 
 @router.get('/conferences')
 def get_conferences(token: Token = None) -> list[ConferenceRead]:
-    user_id = 1
-    return db.get_conferences(user_id)
+    return db.get_conferences(token)
 
 
 @router.post('/conferences', status_code=status.HTTP_201_CREATED)
@@ -95,8 +97,7 @@ def create_conference(
     response: Response,
     token: Token = None
 ) -> ConferenceRead:
-    user_id = 1
-    created_conference = db.create_conference(user_id, conference)
+    created_conference = db.create_conference(token, conference)
     response.headers['location'] = f'{request.url}/{created_conference.id}'
     return created_conference
 
@@ -106,14 +107,14 @@ def create_conference(
 #     ...
 
 
-# @router.delete(
-#     '/conferences/{conference_id}',
-#     status_code=status.HTTP_204_NO_CONTENT
-# )
-# def delete_conference() -> None:
-#     ...
+@router.delete(
+    '/conferences/{conference_id}',
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_conference(conference_id: int, token: Token = None) -> None:
+    db.delete_conference(token, conference_id)
 
 
-# @router.post('/recordings/{recording_id}/stop')
-# def stop_recording():
-#     ...
+@router.post('/conferences/{conference_id}/recording/stop')
+def stop_recording(conference_id: int, token: Token = None):
+    db.stop_recording(token, conference_id)

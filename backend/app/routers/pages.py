@@ -1,123 +1,80 @@
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, status
+from fastapi import APIRouter, Cookie, status, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.persistence import postgres as db
+
+log = logging.getLogger(__name__)
+
 router = APIRouter(tags=['Pages'])
+
+templates = Jinja2Templates(directory='templates')
 
 Token = Annotated[str | None, Cookie()]
 
 
-@router.get('/sign-in')
-def sign_in(token: Token = None):
+@router.get('/sign-in', response_class=HTMLResponse)
+def sign_in(request: Request, token: Token = None):
     if token:
         return RedirectResponse('/', status.HTTP_302_FOUND)
-    content = """
-        <html>
-            <head>
-                <title>Sign In Page</title>
-            </head>
-            <body>
-                <h1>Please sign in</h1>
-                <div>
-                    <label for="uname"><b>Username</b></label>
-                    <input type="text" placeholder="Enter Username" name="uname" required>
-                    
-                    <label for="psw"><b>Password</b></label>
-                    <input type="password" placeholder="Enter Password" name="psw" required>
-                    
-                    <button type="submit" onclick="signInPost()">Sign In</button>
-                </div>
-                <script>
-                    const signInPost = () => {
-                        const unameInput = document.querySelector('input[name="uname"]')
-                        const pswInput = document.querySelector('input[name="psw"]')
-                        
-                        const data = {
-                            'login': unameInput.value,
-                            'password': pswInput.value
-                        }
-                        
-                        fetch('http://localhost:8000/api/users/sign-in', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            redirect: 'follow',
-                            body: JSON.stringify(data)
-                        }).then(async res => {
-                            console.log(res)
-                            console.log(await res.json())
-                        })
-                    }
-                </script>
-            </body>
-        </html>
-    """
-    return HTMLResponse(content)
+    return templates.TemplateResponse(
+        'signx.html', {'request': request, 'page_name': 'Sign In'}
+    )
 
 
-@router.get('/sign-up')
-def sign_up(token: Token = None):
+@router.get('/sign-up', response_class=HTMLResponse)
+def sign_up(request: Request, token: Token = None):
     if token:
         return RedirectResponse('/', status.HTTP_302_FOUND)
-    content = """
-        <html>
-            <head>
-                <title>Sign Up Page</title>
-            </head>
-            <body>
-                <h1>Please sign up</h1>
-                <div>
-                    <label for="uname"><b>Username</b></label>
-                    <input type="text" placeholder="Enter Username" name="uname" required>
-                    
-                    <label for="psw"><b>Password</b></label>
-                    <input type="password" placeholder="Enter Password" name="psw" required>
-                    
-                    <button type="submit" onclick="signUpPost()">Sign Up</button>
-                </div>
-                <script>
-                    const signUpPost = () => {
-                        const unameInput = document.querySelector('input[name="uname"]')
-                        const pswInput = document.querySelector('input[name="psw"]')
-                        
-                        const data = {
-                            'login': unameInput.value,
-                            'password': pswInput.value
-                        }
-                        
-                        fetch('http://localhost:8000/api/users/sign-up', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            redirect: 'follow',
-                            body: JSON.stringify(data)
-                        }).then(console.log)
-                    }
-                </script>
-            </body>
-        </html>
-    """
-    return HTMLResponse(content)
+    return templates.TemplateResponse(
+        'signx.html', {'request': request, 'page_name': 'Sign Up'}
+    )
 
 
-@router.get('/')
-def root(token: Token = None):
+@router.get('/', response_class=HTMLResponse)
+def home(request: Request, token: Token = None):
     if not token:
         return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
-    content = """
-        <html>
-            <head>
-                <title>Main Page</title>
-            </head>
-            <body>
-                <h1>Welcome to root!</h1>
-                <button type="submit" onclick="signOut()">Sign Out</button>
-            </body>
-            <script>
-            const signOut = () => {
-                fetch('http://localhost:8000/api/users/sign-out', {method: 'POST'})
-                .then(console.log)
-            }
-            </script>
-        </html>
-    """
-    return HTMLResponse(content)
+    
+    conferences = db.get_conferences(token)
+
+    return templates.TemplateResponse(
+        'index.html',
+        {'request': request, 'page_name': 'Home', 'conferences': conferences}
+    )
+
+
+@router.get('/history', response_class=HTMLResponse)
+def history(request: Request, token: Token = None):
+    if not token:
+        return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
+    return templates.TemplateResponse(
+        'history.html', {'request': request, 'page_name': 'History'}
+    )
+
+
+@router.get('/settings', response_class=HTMLResponse)
+def settings(request: Request, token: Token = None):
+    if not token:
+        return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
+    return templates.TemplateResponse(
+        'settings.html', {'request': request, 'page_name': 'Settings'}
+    )
+
+
+# @router.get('/recordings/{recording_id}/')
+@router.get('/conferences/{conference_id}/recording')
+def recordings(request: Request, token: Token = None):
+    if not token:
+        return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
+
+    # Get recording data by id and session token
+    
+    # If there is no such recording return not found page
+
+    return templates.TemplateResponse(
+        'recording.html', {'request': request, 'page_name': 'Recording'}
+    )

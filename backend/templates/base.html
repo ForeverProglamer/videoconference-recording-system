@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
+  <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+  {% block styles %}{% endblock %}
+  {% block head_scripts %}{% endblock %}
+  <title>Meeting Recorder | {{ page_name }}</title>
+</head>
+{% block body %}
+    {% block body_scripts %}{% endblock %}
+{% endblock %}
+</html>

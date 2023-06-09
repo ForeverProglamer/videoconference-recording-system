@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import os
 from functools import wraps
@@ -6,7 +7,7 @@ from typing import Callable, TypeVar, ParamSpec
 from psycopg2 import connect
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
-from psycopg2.errors import Error
+from psycopg2.errors import Error, UniqueViolation
 from pypika import Table, PostgreSQLQuery as Query
 
 from app.schemas.user import UserCreate, UserRead, UserBase, SessionBase, UserInDb
@@ -114,6 +115,19 @@ def create_session(conn: connection, user: UserInDb) -> SessionBase:
 
 
 @pg_connection()
+def get_session(conn: connection, user: UserInDb) -> SessionBase:
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(sessions
+                .select(sessions.token, sessions.expires_at)
+                .where(sessions.user_id == user.id).get_sql()
+            )
+            return SessionBase(**cur.fetchone())
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
 def delete_session(conn: connection, token: str) -> None:
     try:
         with conn.cursor() as cur:
@@ -129,16 +143,21 @@ def delete_session(conn: connection, token: str) -> None:
 @pg_connection()
 def create_conference(
     conn: connection,
-    user_id: int,
+    token: str,
     conference: ConferenceCreate
 ) -> ConferenceRead:
     conf_without_settings = conference.dict(exclude={'settings'})
     settings = conference.settings.dict()
-    recording = Recording(
-        filename=generate_recording_filename(user_id, conference)
-    )
     try:
         with conn.cursor() as cur:
+            cur.execute(Query
+                .from_(sessions)
+                .select(sessions.user_id)
+                .where(sessions.token == token).get_sql()
+            )
+
+            user_id = cur.fetchone()[0]
+
             cur.execute(Query
                 .into(conferences)
                 .columns(conferences.user_id, *conf_without_settings.keys())
@@ -154,11 +173,16 @@ def create_conference(
                 .insert(conference_id, *settings.values()).get_sql()
             )
 
+            recording = Recording(
+                filename=generate_recording_filename(user_id, conference)
+            )
+
             cur.execute(Query
                 .into(recordings)
                 .columns(recordings.conference_id, *recording.dict().keys())
                 .insert(conference_id, *recording.dict().values()).get_sql()
             )
+
             return ConferenceRead(
                 id=conference_id,
                 user_id=user_id,
@@ -170,7 +194,7 @@ def create_conference(
 
 
 @pg_connection()
-def get_conferences(conn: connection, user_id: int) -> list[ConferenceRead]:
+def get_conferences(conn: connection, token: str) -> list[ConferenceRead]:
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(Query
@@ -179,6 +203,8 @@ def get_conferences(conn: connection, user_id: int) -> list[ConferenceRead]:
                 .on(conferences.id == conference_settings.conference_id)
                 .inner_join(recordings)
                 .on(conferences.id == recordings.conference_id)
+                .inner_join(sessions)
+                .on(conferences.user_id == sessions.user_id)
                 .select(
                     conferences.id, conferences.user_id, conferences.title,
                     conferences.invite_link, conferences.start_time,
@@ -187,7 +213,8 @@ def get_conferences(conn: connection, user_id: int) -> list[ConferenceRead]:
                     conference_settings.disclaimer_message,
                     recordings.filename, recordings.status
                 )
-                .where(conferences.user_id == user_id).get_sql()
+                .where(sessions.token == token)
+                .orderby(conferences.start_time).get_sql()
             )
             return [
                 ConferenceRead(
@@ -197,5 +224,43 @@ def get_conferences(conn: connection, user_id: int) -> list[ConferenceRead]:
                 )
                 for item in cur
             ]
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def delete_conference(
+    conn: connection, token: str, conference_id: int
+) -> None:
+    try:
+        with conn.cursor() as cur:
+            cur.execute(Query
+                .from_(conferences)
+                .delete()
+                .where(
+                    conferences.user_id == sessions.select(sessions.user_id)
+                    .where(sessions.token == token)
+                )
+                .where(conferences.id == conference_id).get_sql()
+            )
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def stop_recording(
+    conn: connection, token: str, conference_id: int
+) -> None:
+    try:
+        with conn.cursor() as cur:
+            cur.execute(Query
+                .update(conferences)
+                .set(conferences.end_time == datetime.now())
+                .where(
+                    conferences.user_id == sessions.select(sessions.user_id)
+                    .where(sessions.token == token)
+                )
+                .where(conferences.id == conference_id).get_sql()
+            )
     except Error as e:
         log.exception(e)
