@@ -18,4 +18,4 @@ def generate_recording_filename(
         f'{conference.invite_link}-{conference.start_time}'
     ).encode(ENCODING)
 
-    return f'{md5(filename)}.mp4'
+    return f'{md5(filename).hexdigest()}.mp4'
