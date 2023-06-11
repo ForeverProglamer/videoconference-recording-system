@@ -15,7 +15,7 @@ STOP_RECORDING_URI = '/recording/{}/stop'
 
 def start_conference_recording(conference: Conference) -> httpx.Response:
     url = f'{API_URL}{START_RECORDING_URI}'
-    response = httpx.post(url, data=json.loads(conference.json()))
+    response = httpx.post(url, json=json.loads(conference.json()))
     return response
 
 

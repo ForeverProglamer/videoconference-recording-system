@@ -52,7 +52,7 @@ class Conference(Model):
     title: str
     invite_link: str
     start_time: datetime
-    end_time: datetime
+    end_time: datetime | None = None
     platform: ConferencingPlatform
     settings: Settings
     recording: Recording
