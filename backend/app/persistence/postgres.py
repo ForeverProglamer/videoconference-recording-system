@@ -119,14 +119,18 @@ def create_session(conn: connection, user: UserInDb) -> SessionBase:
 
 
 @pg_connection()
-def get_session(conn: connection, user: UserInDb) -> SessionBase:
+def get_session(conn: connection, user: UserInDb) -> SessionBase | None:
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(sessions
                 .select(sessions.token, sessions.expires_at)
                 .where(sessions.user_id == user.id).get_sql()
             )
-            return SessionBase(**cur.fetchone())
+
+            item = cur.fetchone()
+            if not item:
+                return None
+            return SessionBase(**item)
     except Error as e:
         log.exception(e)
 
