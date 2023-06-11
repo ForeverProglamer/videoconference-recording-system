@@ -16,6 +16,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from app.orchestrator.exceptions import UnsupportedConferencingPlatformError
 from app.schema import Conference, ConferencingPlatform
 
+BOT_NAME = 'Meeting Recorder'
+
 REMOTE_ADDRESS = os.getenv('REMOTE_ADDRESS')
 
 WAIT_DURATION_SECONDS = 5
@@ -77,12 +79,17 @@ def _configure_options(
     return options
 
 
+def _prepare_participant_name(conference: Conference) -> str:
+    return f'{conference.settings.participant_name} | {BOT_NAME}'
+
+
 class ConferenceBot(ABC):
     @abstractmethod
     def __init__(
         self: Self, conference: Conference, browser_version: str
     ) -> None:
         self._conference = conference
+        self._participant_name = _prepare_participant_name(conference)
         self._browser_version = browser_version
 
     @abstractmethod
@@ -163,7 +170,7 @@ class ZoomBot(ConferenceBot):
         except TimeoutException as e:
             log.exception(e)
         else:
-            input_.send_keys(self._conference.settings.participant_name)
+            input_.send_keys(self._participant_name)
             input_.send_keys(Keys.RETURN)
 
     def _connect_audio(self: Self) -> None:
@@ -269,7 +276,7 @@ class GoogleMeetBot(ConferenceBot):
         camera_btn.click()
 
         sleep(self._DELAY_SECONDS)
-        for letter in self._conference.settings.participant_name:
+        for letter in self._participant_name:
             input_.send_keys(letter)
             sleep(self._TYPING_DELAY_SECONDS)
 
