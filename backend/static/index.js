@@ -3,6 +3,7 @@
 const SIGN_OUT_URI = '/api/users/sign-out'
 const SCHEDULE_MEETING_URI = '/api/conferences'
 const DELETE_MEETING_URI = '/api/conferences/'
+const STOP_RECORDING_URI = '/api/conferences/{}/recording/stop'
 
 const ZOOM_LOGO_URI = '/static/img/zoom.svg'
 const MEET_LOGO_URI = '/static/img/meet.png'
@@ -25,61 +26,6 @@ const RECORDING_STATUS_TO_HTML = {
         icon: '<i class="fa-solid fa-circle-check"></i>',
         text: 'Finished'
     }
-}
-
-const CONFERENCE_TEMPLATE = `
-<div class="card mb-3">
-    <div class="row g-0 justify-content-around align-items-center">
-        <div class="col-2 py-2">
-            <img width="80" height="80" src="{1}" 
-                class="img-fluid rounded mx-auto d-block" 
-                alt="Conferencing Platform Logo"
-            >
-        </div>
-        <div class="col-1 vr"></div>
-        <div class="col-7 py-2">
-            <h5 class="card-title">{2}</h5>
-            <div>
-                <span class="me-2">
-                    <i class="fa-solid fa-calendar-week"></i> {3}
-                </span>
-                <span class="me-2">
-                    <i class="fa-solid fa-clock"></i> {4}
-                </span>
-            </div>
-            <div>
-                <span class="me-2">
-                    <i class="fa-solid fa-circle-user"></i> {5}
-                </span>
-                <span class="me-2">
-                    <i class="fa-solid fa-link"></i>
-                    <a href="{6}" class="card-text">Invite link</a>
-                </span>
-                <span>{7}</span>
-            </div>
-        </div>
-        <div class="col-2 py-2">
-            <button data-conference-id="{0}" 
-                class="btn btn-outline-primary mb-3 w-100" 
-            >Edit</button>
-        
-            <button data-conference-id="{0}" 
-                class="btn btn-outline-danger w-100" 
-                onclick="deleteConference(this)"
-            >Delete</button>
-        </div>
-    </div>
-</div>
-`
-
-
-function formatTemplate(template, ...args) {
-    let result = template.slice()
-    for (let i = 0; i < args.length; i++) {
-        let regexp = new RegExp('\\{'+i+'\\}', 'gi')
-        result = result.replace(regexp, args[i])
-    }
-    return result
 }
 
 
@@ -138,22 +84,7 @@ window.addEventListener('DOMContentLoaded', event => {
     const conferenceContainer = document.getElementById('conferencesContainer')
 
     function renderConference(data) {
-        const leftSpaceDiv = document.createElement('div')
-        leftSpaceDiv.className = 'col-md-1'
-        leftSpaceDiv.setAttribute('data-conference-id', data.id)
-        
-        const conferenceDiv = document.createElement('div')
-        conferenceDiv.className = 'col-md-10'
-        conferenceDiv.setAttribute('data-conference-id', data.id)
-        conferenceDiv.innerHTML = mapConferenceToHTML(data)
-
-        const rightSpaceDiv = document.createElement('div')
-        rightSpaceDiv.className = 'col-md-1'
-        rightSpaceDiv.setAttribute('data-conference-id', data.id)
-
-        conferenceContainer.appendChild(leftSpaceDiv)
-        conferenceContainer.appendChild(conferenceDiv)
-        conferenceContainer.appendChild(rightSpaceDiv)
+        conferenceContainer.innerHTML += data
     }
 
     function mapConferenceToHTML(data) {
@@ -242,7 +173,7 @@ window.addEventListener('DOMContentLoaded', event => {
                 `${location.origin}${SCHEDULE_MEETING_URI}`,
                 {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Accept': 'text/html', 'Content-Type': 'application/json'},
                     body: JSON.stringify(getScheduleFormData())
                 }
             )
@@ -251,10 +182,12 @@ window.addEventListener('DOMContentLoaded', event => {
             console.log(error)
             return
         }
-        const jsonResponse = await response.json()
-        console.log(jsonResponse)
 
-        renderConference(jsonResponse)
+        if (response.status !== 201) return
+
+        const htmlResponse = await response.text()
+
+        renderConference(htmlResponse)
 
         clearFormData()
     }
@@ -292,4 +225,20 @@ const deleteConference = async button => {
     }
 
     removeConferenceFromPage(conferenceId)
+}
+
+// Stop conference recording
+const stopRecording = async button => {
+    const conferenceId = button.getAttribute('data-conference-id')
+    const uri = STOP_RECORDING_URI.replace('{}', conferenceId)
+
+    let response
+    try {
+        response = await fetch(`${location.origin}${uri}`, {method: 'POST'})
+    } catch (error) {
+        console.error(error)
+        return
+    }
+
+    console.log(response)
 }

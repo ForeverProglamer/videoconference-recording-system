@@ -1,8 +1,11 @@
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, status, Response, Request, Cookie, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import (
+    APIRouter,status, Response, Request, Cookie, HTTPException, Header
+)
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from app.persistence import postgres as db
 from app.schemas.conference import (
@@ -17,7 +20,11 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api', tags=['API'])
 
+templates = Jinja2Templates(directory='templates')
+
 Token = Annotated[str | None, Cookie()]
+
+Accept = Annotated[str | None, Header()]
 
 
 @router.post('/users/sign-up')
@@ -94,11 +101,17 @@ def get_conferences(token: Token = None) -> list[ConferenceRead]:
 def create_conference(
     conference: ConferenceCreate,
     request: Request,
-    response: Response,
+    accept: Accept = 'application/json',
     token: Token = None
-) -> ConferenceRead:
+) -> Any:
     created_conference = db.create_conference(token, conference)
-    response.headers['location'] = f'{request.url}/{created_conference.id}'
+    log.info(f'{accept = }')
+    if accept == 'text/html':
+        return templates.TemplateResponse(
+            'conference.html',
+            context={'request': request, 'conference': created_conference},
+            status_code=status.HTTP_201_CREATED
+        )
     return created_conference
 
 
@@ -115,6 +128,9 @@ def delete_conference(conference_id: int, token: Token = None) -> None:
     db.delete_conference(token, conference_id)
 
 
-@router.post('/conferences/{conference_id}/recording/stop')
-def stop_recording(conference_id: int, token: Token = None):
+@router.post(
+    '/conferences/{conference_id}/recording/stop',
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def stop_recording(conference_id: int, token: Token = None) -> None:
     db.stop_recording(token, conference_id)

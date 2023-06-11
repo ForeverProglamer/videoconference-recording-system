@@ -1,17 +1,21 @@
 from datetime import datetime
 import logging
 import os
-from functools import wraps
-from typing import Callable, TypeVar, ParamSpec
+from functools import reduce, wraps
+from typing import Callable, Iterable, TypeVar, ParamSpec
 
 from psycopg2 import connect
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
-from psycopg2.errors import Error, UniqueViolation
-from pypika import Table, PostgreSQLQuery as Query
+from psycopg2.errors import Error
+from pypika import Table, PostgreSQLQuery as Query, Criterion, Field, Order
 
-from app.schemas.user import UserCreate, UserRead, UserBase, SessionBase, UserInDb
-from app.schemas.conference import ConferenceCreate, ConferenceRead, Recording, SettingsBase
+from app.schemas.user import (
+    UserCreate, UserRead, UserBase, SessionBase, UserInDb
+)
+from app.schemas.conference import (
+    ConferenceCreate, ConferenceRead, Recording, RecordingStatus, SettingsBase
+)
 from app.utils.auth import hash_password
 from app.utils.recording import generate_recording_filename
 
@@ -174,7 +178,9 @@ def create_conference(
             )
 
             recording = Recording(
-                filename=generate_recording_filename(user_id, conference)
+                filename=generate_recording_filename(
+                    user_id, conference, conference_id
+                )
             )
 
             cur.execute(Query
@@ -194,28 +200,16 @@ def create_conference(
 
 
 @pg_connection()
-def get_conferences(conn: connection, token: str) -> list[ConferenceRead]:
+def get_upcoming_conferences(
+    conn: connection, token: str
+) -> list[ConferenceRead]:
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(Query
-                .from_(conferences)
-                .inner_join(conference_settings)
-                .on(conferences.id == conference_settings.conference_id)
-                .inner_join(recordings)
-                .on(conferences.id == recordings.conference_id)
-                .inner_join(sessions)
-                .on(conferences.user_id == sessions.user_id)
-                .select(
-                    conferences.id, conferences.user_id, conferences.title,
-                    conferences.invite_link, conferences.start_time,
-                    conferences.end_time, conferences.platform,
-                    conference_settings.participant_name,
-                    conference_settings.disclaimer_message,
-                    recordings.filename, recordings.status
-                )
-                .where(sessions.token == token)
-                .orderby(conferences.start_time).get_sql()
-            )
+            cur.execute(_prepare_get_conferences_query(
+                token,
+                criterions=[recordings.status == RecordingStatus.SCHEDULED],
+                orders=[(conferences.start_time, Order.asc)]
+            ))
             return [
                 ConferenceRead(
                     settings=SettingsBase(**item),
@@ -226,6 +220,113 @@ def get_conferences(conn: connection, token: str) -> list[ConferenceRead]:
             ]
     except Error as e:
         log.exception(e)
+
+
+@pg_connection()
+def get_in_progress_conferences(
+    conn: connection, token: str
+) -> list[ConferenceRead]:
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(_prepare_get_conferences_query(
+                token,
+                criterions=[recordings.status == RecordingStatus.IN_PROGRESS],
+                orders=[(conferences.start_time, Order.asc)]
+            ))
+            return [
+                ConferenceRead(
+                    settings=SettingsBase(**item),
+                    recording=Recording(**item),
+                    **item
+                )
+                for item in cur
+            ]
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def get_finished_conferences(
+    conn: connection, token: str
+) -> list[ConferenceRead]:
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(_prepare_get_conferences_query(
+                token,
+                criterions=[recordings.status == RecordingStatus.FINISHED],
+                orders=[(conferences.start_time, Order.asc)]
+            ))
+            return [
+                ConferenceRead(
+                    settings=SettingsBase(**item),
+                    recording=Recording(**item),
+                    **item
+                )
+                for item in cur
+            ]
+    except Error as e:
+        log.exception(e)
+
+
+@pg_connection()
+def get_conference(
+    conn: connection, token: str, conference_id: int
+) -> ConferenceRead:
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(_prepare_get_conferences_query(
+                token, criterions=[conferences.id == conference_id]
+            ))
+
+            item = cur.fetchone()
+
+            return ConferenceRead(
+                settings=SettingsBase(**item),
+                recording=Recording(**item),
+                **item
+            )
+    except Error as e:
+        log.exception(e)
+
+
+def _prepare_get_conferences_query(
+    token: str, 
+    *,
+    criterions: Iterable[Criterion] = None,
+    orders: Iterable[tuple[Field, Order]] = None
+) -> str:
+    query = (Query
+        .from_(conferences)
+        .inner_join(conference_settings)
+        .on(conferences.id == conference_settings.conference_id)
+        .inner_join(recordings)
+        .on(conferences.id == recordings.conference_id)
+        .inner_join(sessions)
+        .on(conferences.user_id == sessions.user_id)
+        .select(
+            conferences.id, conferences.user_id, conferences.title,
+            conferences.invite_link, conferences.start_time,
+            conferences.end_time, conferences.platform,
+            conference_settings.participant_name,
+            conference_settings.disclaimer_message,
+            recordings.filename, recordings.status
+        )
+        .where(sessions.token == token)
+    )
+
+    if criterions:
+        query = reduce(
+            lambda query, criterion: query.where(criterion), criterions, query
+        )
+
+    if orders:
+        query = reduce(
+            lambda query, order: query.orderby(order[0], oreder=order[1]),
+            orders,
+            query
+        )
+
+    return query.get_sql()
 
 
 @pg_connection()
@@ -255,7 +356,7 @@ def stop_recording(
         with conn.cursor() as cur:
             cur.execute(Query
                 .update(conferences)
-                .set(conferences.end_time == datetime.now())
+                .set(conferences.end_time, datetime.now())
                 .where(
                     conferences.user_id == sessions.select(sessions.user_id)
                     .where(sessions.token == token)
