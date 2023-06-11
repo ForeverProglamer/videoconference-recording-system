@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, status, Request
@@ -6,6 +7,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.persistence import postgres as db
+
+VIDEO_HOST = os.getenv('VIDEO_HOST')
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +42,7 @@ def home(request: Request, token: Token = None):
     if not token:
         return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
     
-    conferences = db.get_conferences(token)
+    conferences = db.get_upcoming_conferences(token)
 
     return templates.TemplateResponse(
         'index.html',
@@ -47,12 +50,37 @@ def home(request: Request, token: Token = None):
     )
 
 
+@router.get('/in-progress', response_class=HTMLResponse)
+def in_progress(request: Request, token: Token = None):
+    if not token:
+        return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
+
+    conferences = db.get_in_progress_conferences(token)
+
+    return templates.TemplateResponse(
+        'in-progress.html',
+        {
+            'request': request,
+            'page_name': 'History',
+            'conferences': conferences
+        }
+    )
+
+
 @router.get('/history', response_class=HTMLResponse)
 def history(request: Request, token: Token = None):
     if not token:
         return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
+
+    conferences = db.get_finished_conferences(token)
+
     return templates.TemplateResponse(
-        'history.html', {'request': request, 'page_name': 'History'}
+        'history.html',
+        {
+            'request': request,
+            'page_name': 'History',
+            'conferences': conferences
+        }
     )
 
 
@@ -65,16 +93,22 @@ def settings(request: Request, token: Token = None):
     )
 
 
-# @router.get('/recordings/{recording_id}/')
-@router.get('/conferences/{conference_id}/recording')
-def recordings(request: Request, token: Token = None):
+@router.get(
+    '/conferences/{conference_id}/recording',
+    response_class=HTMLResponse
+)
+def recordings(conference_id: int, request: Request, token: Token = None):
     if not token:
         return RedirectResponse('/sign-in', status.HTTP_302_FOUND)
 
-    # Get recording data by id and session token
+    conference = db.get_conference(token, conference_id)
     
-    # If there is no such recording return not found page
-
     return templates.TemplateResponse(
-        'recording.html', {'request': request, 'page_name': 'Recording'}
+        'recording.html',
+        {
+            'request': request,
+            'page_name': 'Recording',
+            'video_host': VIDEO_HOST,
+            'conference': conference
+        }
     )

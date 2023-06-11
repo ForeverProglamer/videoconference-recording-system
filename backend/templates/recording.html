@@ -1,4 +1,47 @@
 {% extends "app_base.html" %}
 {% block body_content %}
-    <main></main>
+<main>
+    <div class="container-fluid px-4">
+        <h1 class="mt-4 mb-4">{{ conference.title }}</h1>
+        <div class="row">
+            <div class="col-xl-8">
+                <div class="card mb-4">
+                    <div class="card-header">Recorded Video</div>
+                    <div class="card-body">
+                        <video class="w-100" controls>
+                            <source src="{{ video_host }}/{{ conference.recording.filename }}" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4">
+                <div class="card mb-4">
+                    <div class="card-header">Conference Info</div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fa-solid fa-calendar-week"></i> 
+                            Date: {{ conference.start_time.strftime('%a %b %d') }}
+                            {% if conference.start_time.date() != conference.end_time.date() %}
+                            - {{ conference.end_time.strftime('%a %b %d') }}                   
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fa-solid fa-clock"></i> 
+                            Time: {{ conference.start_time.strftime('%H:%M') }} - {{ conference.end_time.strftime('%H:%M') }}
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fa-solid fa-circle-user"></i>
+                            Used participant name: {{ conference.settings.participant_name }}
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fa-solid fa-message"></i>
+                            Used disclaimer message
+                            <textarea class="form-control mt-2" rows="3" disabled>{{ conference.settings.disclaimer_message }}</textarea>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
 {% endblock body_content %}

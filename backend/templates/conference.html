@@ -1,0 +1,111 @@
+<div data-conference-id="{{ conference.id }}" class="col-md-1"></div>
+<div data-conference-id="{{ conference.id }}" class="col-md-10">
+  <div class="card mb-3">
+    <div class="row g-0 px-2 justify-content-around align-items-center">
+      <div class="col-1 py-2">
+        {% if conference.platform == 'zoom' %}
+        <img
+          width="80"
+          height="80"
+          src="{{ url_for('static', path='/img/zoom.svg') }}"
+          class="img-fluid rounded mx-auto d-block"
+          alt="Conferencing Platform Logo"
+        />
+        {% elif conference.platform == 'google_meet' %}
+        <img
+          width="80"
+          height="80"
+          src="{{ url_for('static', path='/img/meet.png') }}"
+          class="img-fluid rounded mx-auto d-block"
+          alt="Conferencing Platform Logo"
+        />
+        {% else %}
+        <img
+          width="80"
+          height="80"
+          src=""
+          class="img-fluid rounded mx-auto d-block"
+          alt="Conferencing Platform Logo"
+        />
+        {% endif %}
+      </div>
+      <div class="col-1 vr"></div>
+      <div class="col-8 py-2">
+        <h5 class="card-title">{{ conference.title }}</h5>
+        <div>
+          <span class="me-2">
+            <i class="fa-solid fa-calendar-week"></i>
+            {{ conference.start_time.strftime('%a %b %d') }}
+          </span>
+          <span class="me-2">
+            <i class="fa-solid fa-clock"></i>
+            {{ conference.start_time.strftime('%H:%M') }}
+          </span>
+        </div>
+        <div>
+          <span class="me-2">
+            <i class="fa-solid fa-circle-user"></i>
+            {{ conference.settings.participant_name }}
+          </span>
+          <span class="me-2">
+            <i class="fa-solid fa-link"></i>
+            <a href="{{ conference.invite_link }}" class="card-text"
+              >Invite Link</a
+            >
+          </span>
+          <span>
+            {% if conference.recording.status == 'scheduled' %}
+            <i class="fa-solid fa-calendar-check"></i> Scheduled 
+            {% elif conference.recording.status == 'in_progress' %}
+            <i class="fa-solid fa-spinner"></i> In progress 
+            {% elif conference.recording.status == 'finished' %}
+            <i class="fa-solid fa-circle-check"></i> Finished
+            {% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="col-2 py-2">
+        {% if conference.recording.status == 'scheduled' %}
+        <button
+          data-conference-id="{{ conference.id }}"
+          class="btn btn-outline-primary mb-3 w-100"
+          onclick="editConference(this)"
+        >
+          Edit
+        </button>
+        <button
+          data-conference-id="{{ conference.id }}"
+          class="btn btn-outline-danger w-100"
+          onclick="deleteConference(this)"
+        >
+          Delete
+        </button>
+        {% elif conference.recording.status == 'in_progress' %}
+        <button
+          data-conference-id="{{ conference.id }}"
+          class="btn btn-outline-danger w-100"
+          onclick="stopRecording(this)"
+        >
+          Stop
+        </button>
+        {% elif conference.recording.status == 'finished' %}
+        <a
+          data-conference-id="{{ conference.id }}"
+          class="btn btn-outline-primary mb-3 w-100"
+          href="{{ request.base_url }}conferences/{{ conference.id }}/recording"
+        >
+          View
+        </a>
+        <button
+          data-conference-id="{{ conference.id }}"
+          class="btn btn-outline-danger w-100"
+          onclick="deleteConference(this)"
+        >
+          Delete
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<div data-conference-id="{{ conference.id }}" class="col-md-1"></div>

@@ -1,148 +1,97 @@
 {% extends "app_base.html" %}
 {% block body_content %}
-    <main>
-        <div class="container-fluid px-4">
-            <h1 class="mt-4 mb-4">Upcoming</h1>
-            <div class="row">
+<main>
+    <div class="container-fluid px-4">
+        <h1 class="mt-4 mb-4">Upcoming</h1>
+        <div class="row">
 
-                <div class="col-xl-8">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            Upcoming conference recordings for the next week
-                        </div>
-                        <div class="card-body">
-                            {% if conferences|length == 0 %}
-                                <div class="alert alert-primary text-center" role="alert">
-                                    You don't have any scheduled conference recordings for the next week.
-                                </div>
-                            {% endif %}
-                            <!-- Conference Cards -->
-                            <div id="conferencesContainer" class="row mb-4">
-                                {% for conference in conferences %}
-                                    <div data-conference-id="{{ conference.id }}" class="col-md-1"></div>
-                                    <div data-conference-id="{{ conference.id }}" class="col-md-10">
-                                        <div class="card mb-3">
-                                            <div class="row g-0 justify-content-around align-items-center">
-                                                <div class="col-2 py-2">
-                                                    {% if conference.platform == 'zoom' %}
-                                                        <img width="80" height="80" src="{{ url_for('static', path='/img/zoom.svg') }}" class="img-fluid rounded mx-auto d-block" alt="Conferencing Platform Logo">
-                                                    {% elif conference.platform == 'google_meet' %}
-                                                        <img width="80" height="80" src="{{ url_for('static', path='/img/meet.png') }}" class="img-fluid rounded mx-auto d-block" alt="Conferencing Platform Logo">
-                                                    {% else %}
-                                                        <img width="80" height="80" src="" class="img-fluid rounded mx-auto d-block" alt="Conferencing Platform Logo">
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-1 vr"></div>
-                                                <div class="col-7 py-2">
-                                                    <h5 class="card-title">{{ conference.title }}</h5>
-                                                    <div>
-                                                        <span class="me-2">
-                                                            <i class="fa-solid fa-calendar-week"></i>
-                                                            {{ conference.start_time.strftime('%a %b %d') }}
-                                                        </span>
-                                                        <span class="me-2">
-                                                            <i class="fa-solid fa-clock"></i>
-                                                            {{ conference.start_time.strftime('%H:%M') }}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        <span class="me-2">
-                                                            <i class="fa-solid fa-circle-user"></i>
-                                                            {{ conference.settings.participant_name }}
-                                                        </span>
-                                                        <span class="me-2">
-                                                            <i class="fa-solid fa-link"></i>
-                                                            <a href="{{ conference.invite_link }}" class="card-text">Invite Link</a>
-                                                        </span>
-                                                        <span>
-                                                            {% if conference.recording.status == 'scheduled' %}
-                                                                <i class="fa-solid fa-calendar-check"></i> Scheduled
-                                                            {% elif conference.recording.status == 'in_progress' %}
-                                                                <i class="fa-solid fa-spinner"></i> In progress
-                                                            {% endif %}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div class="col-2 py-2">
-                                                    <button data-conference-id="{{ conference.id }}" class="btn btn-outline-primary mb-3 w-100">Edit</button>
-                                                    <button data-conference-id="{{ conference.id }}" class="btn btn-outline-danger w-100" onclick="deleteConference(this)">Delete</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div data-conference-id="{{ conference.id }}" class="col-md-1"></div>
-                                {% endfor %}
-                            </div>
-
-                        </div>
+            <div class="col-xl-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        Upcoming conference recordings for the next week
                     </div>
-                </div>
-
-                <div class="col-xl-4">
-                    <div class="card mb-4">
-
-                        <div class="card-header">
-                            Schedule conference recording
-                        </div>
-
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-12 mb-3">
-                                    <input id="title" type="text" class="form-control" placeholder="Title" aria-label="Title">
-                                </div>
-                                <div class="col-12 mb-3">
-                                    <select id="platform" class="form-select" aria-label="Meeting platform">
-                                        <option selected>Choose meeting platform</option>
-                                        <option value="zoom">Zoom</option>
-                                        <option value="google_meet">Google Meet</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 mb-3">
-                                    <input id="inviteLink" type="url" class="form-control" placeholder="Invite link" aria-label="Invite link">
-                                </div>
-
-                                <div class="col-12 mb-3">
-                                    <div class="form-check">
-                                        <input id="instantRecording" class="form-check-input" type="radio" name="flexRadioDefault" checked>
-                                        <label class="form-check-label" for="flexRadioDefault1">Instant recording</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input id="scheduleRecording" class="form-check-input" type="radio" name="flexRadioDefault">
-                                        <label class="form-check-label" for="flexRadioDefault2">Schedule recording</label>
-                                    </div>
-                                </div>
-
-                                <div class="col-6 mb-3">
-                                    <label class="form-label" for="startTime">Start time</label>
-                                    <input id="startTime" type="datetime-local" class="form-control" aria-label="Start time" name="startTime">
-                                </div>
-                                <div class="col-6 mb-3">
-                                    <label class="form-label" for="endTime">End time</label>
-                                    <input id="endTime" type="datetime-local" class="form-control" aria-label="End time" name="endTime">
-                                </div>
-
-                                <div class="col-12 mb-3">
-                                    <div class="input-group">
-                                        <input id="participantName" type="text" class="form-control" placeholder="Participant name" aria-label="Participant name">
-                                        <span class="input-group-text">Meeting Recorder</span>
-                                    </div>
-                                </div>
-                                <div class="col-12 mb-3">
-                                    <textarea id="disclaimerMessage" class="form-control" placeholder="Disclaimer message" rows="3"></textarea>
-                                </div>
-
-                                <div class="col-3"></div>
-                                <div class="col-6">
-                                    <button id="scheduleBtn" class="btn btn-primary w-100">Schedule</button>
-                                </div>
-                                <div class="col-3"></div>
+                    <div class="card-body">
+                        {% if conferences|length == 0 %}
+                            <div class="alert alert-primary text-center" role="alert">
+                                You don't have any scheduled conference recordings for the next week.
                             </div>
+                        {% endif %}
+                        <!-- Conference Cards -->
+                        <div id="conferencesContainer" class="row mb-4">
+                            {% for conference in conferences %}
+                                {% include "conference.html" %}
+                            {% endfor %}
                         </div>
 
                     </div>
                 </div>
-
             </div>
+
+            <div class="col-xl-4">
+                <div class="card mb-4">
+
+                    <div class="card-header">
+                        Schedule conference recording
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <input id="title" type="text" class="form-control" placeholder="Title" aria-label="Title">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <select id="platform" class="form-select" aria-label="Meeting platform">
+                                    <option selected>Choose meeting platform</option>
+                                    <option value="zoom">Zoom</option>
+                                    <option value="google_meet">Google Meet</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <input id="inviteLink" type="url" class="form-control" placeholder="Invite link" aria-label="Invite link">
+                            </div>
+
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input id="instantRecording" class="form-check-input" type="radio" name="flexRadioDefault" checked>
+                                    <label class="form-check-label" for="flexRadioDefault1">Instant recording</label>
+                                </div>
+                                <div class="form-check">
+                                    <input id="scheduleRecording" class="form-check-input" type="radio" name="flexRadioDefault">
+                                    <label class="form-check-label" for="flexRadioDefault2">Schedule recording</label>
+                                </div>
+                            </div>
+
+                            <div class="col-6 mb-3">
+                                <label class="form-label" for="startTime">Start time</label>
+                                <input id="startTime" type="datetime-local" class="form-control" aria-label="Start time" name="startTime">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label" for="endTime">End time</label>
+                                <input id="endTime" type="datetime-local" class="form-control" aria-label="End time" name="endTime">
+                            </div>
+
+                            <div class="col-12 mb-3">
+                                <div class="input-group">
+                                    <input id="participantName" type="text" class="form-control" placeholder="Participant name" aria-label="Participant name">
+                                    <span class="input-group-text">Meeting Recorder</span>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <textarea id="disclaimerMessage" class="form-control" placeholder="Disclaimer message" rows="3"></textarea>
+                            </div>
+
+                            <div class="col-3"></div>
+                            <div class="col-6">
+                                <button id="scheduleBtn" class="btn btn-primary w-100">Schedule</button>
+                            </div>
+                            <div class="col-3"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </div>
-    </main>
+    </div>
+</main>
 {% endblock body_content %}

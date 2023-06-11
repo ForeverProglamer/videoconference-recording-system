@@ -15,7 +15,9 @@ services:
     depends_on:
       - database
       - selenoid
-    env_file: .env
+    env_file:
+      - .env
+      - ./backend/.env
     ports:
       - "8000:8000"
     volumes:
