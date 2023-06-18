@@ -67,11 +67,11 @@ def sing_in(
         session = db.create_session(user_in_db)
 
     response = RedirectResponse('/', status.HTTP_302_FOUND)
-
+    
     response.set_cookie(
         key='token',
         value=session.token,
-        expires=session.expires_at.astimezone(),    
+        expires=session.expires_at,
         httponly=True,
         samesite='strict'
     )
@@ -104,6 +104,7 @@ def create_conference(
     accept: Accept = 'application/json',
     token: Token = None
 ) -> Any:
+    log.info(f'{conference = }')
     created_conference = db.create_conference(token, conference)
     log.info(f'{accept = }')
     if accept == 'text/html':

@@ -1,5 +1,7 @@
+import os
 import secrets
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import bcrypt
 
@@ -7,6 +9,7 @@ import bcrypt
 TOKEN_SIZE = 32
 
 DELTA_DAYS = 3
+TZ = ZoneInfo(os.getenv('TZ'))
 
 ENCODING = 'utf-8'
 
@@ -16,7 +19,7 @@ def generate_session_token() -> str:
 
 
 def generate_expiration_datetime() -> datetime:
-    return datetime.now() + timedelta(days=DELTA_DAYS)
+    return datetime.utcnow() + timedelta(days=DELTA_DAYS)
 
 
 def hash_password(password: str) -> str:
