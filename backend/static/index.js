@@ -120,15 +120,47 @@ window.addEventListener('DOMContentLoaded', event => {
     const diclaimerMessageInput = document.getElementById('disclaimerMessage')
     const scheduleButton = document.getElementById('scheduleBtn')
 
+    function formatDatetimeToISO(datetimeValue) {
+        // Create a new Date object using the datetime value
+        const date = new Date(datetimeValue)
+      
+        // Get the user's local timezone offset in minutes
+        const userTimezoneOffset = date.getTimezoneOffset()
+      
+        // Function to format the timezone offset (+/-HH:mm)
+        const formatTimezoneOffset = (offset) => {
+          const sign = offset < 0 ? '+' : '-'
+          const hours = Math.abs(Math.floor(offset / 60)).toString().padStart(2, '0')
+          const minutes = Math.abs(offset % 60).toString().padStart(2, '0')
+          return `${sign}${hours}:${minutes}`
+        };
+      
+        // Convert the user's timezone offset to the desired format
+        const timezoneOffsetFormatted = formatTimezoneOffset(userTimezoneOffset)
+      
+        // Adjust the date by subtracting the user's timezone offset
+        date.setMinutes(date.getMinutes() - userTimezoneOffset)
+      
+        // Get the ISO string representation of the adjusted date
+        let isoString = date.toISOString()
+      
+        // Replace the "Z" in the ISO string with the formatted timezone offset
+        isoString = isoString.replace('Z', timezoneOffsetFormatted)
+      
+        return isoString
+    }
+
     const getScheduleFormData = () => {
-        let startTime = new Date()
+        let startTime = formatDatetimeToISO(new Date())
         let endTime = undefined
         
         if (scheduleRecordingRadioButton.checked) {
             startTime = new Date(startTimeInput.value)
             endTime = new Date(endTimeInput.value)
-            if (startTime > endTime)
+            if (startTime >= endTime)
                 throw new Error('End time can`t be earlier than start time')
+            startTime = formatDatetimeToISO(startTime)
+            endTime = formatDatetimeToISO(endTime)
         }
 
         if (platformSelect.selectedIndex === 0)
