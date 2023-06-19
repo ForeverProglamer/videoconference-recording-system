@@ -113,7 +113,9 @@ class ZoomBot(ConferenceBot):
         'leave_btn': 
             (By.CSS_SELECTOR, '.footer__leave-btn-container > button'),
         'confirm_leave_btn': 
-            (By.CSS_SELECTOR, '.leave-meeting-options__inner > button')
+            (By.CSS_SELECTOR, '.leave-meeting-options__inner > button'),
+        'chat_btn': (By.CSS_SELECTOR, '.footer-chat-button > button'),
+        'textarea': (By.CSS_SELECTOR, '#wc-container-right textarea')
     }
 
     def __init__(
@@ -145,7 +147,19 @@ class ZoomBot(ConferenceBot):
         self._connect_audio()
 
     def send_message(self: Self) -> None:
-        pass
+        chat_btn = self._driver.find_element(*self._SELECTORS['chat_btn'])
+        chat_btn.click()
+
+        try:
+            textarea = self._wait.until(
+                EC.presence_of_element_located(self._SELECTORS['textarea'])
+            )
+        except TimeoutException as e:
+            log.exception(e)
+        else:
+            textarea.send_keys(self._conference.settings.disclaimer_message)
+            textarea.send_keys(Keys.RETURN)
+            chat_btn.click()
 
     def leave_conference(self: Self) -> None:
         # Click Leave
@@ -182,7 +196,7 @@ class ZoomBot(ConferenceBot):
             # Host doesn't admit bot or already removed bot
             log.exception(e)
         else:
-            join_audio_btn.click()
+            self._driver.execute_script('arguments[0].click()', join_audio_btn)
 
     def _confirm_leave(self: Self) -> None:
         try:
@@ -206,10 +220,15 @@ class ZoomBot(ConferenceBot):
 class GoogleMeetBot(ConferenceBot):
 
     _SELECTORS: dict[str, tuple[str, str]] = {
+        'off_micro_btn': (By.CSS_SELECTOR, 'button[data-mdc-dialog-action="cancel"]'),
+        'without_account_btn': 
+            (By.CSS_SELECTOR, 'div[jsaction="JIbuQc:trigger.a4o1Te"] button'),
         'name_input': (By.CSS_SELECTOR, 'input[jsname="YPqjbf"]'),
         'micro_and_camera_btns': (By.CSS_SELECTOR, 'div[jsname="BOHaEe"]'),
         'popup_ok_btn': (By.CSS_SELECTOR, 'button[jsname="EszDEe"]'),
-        'leave_btn': (By.CSS_SELECTOR, 'button[jsname="CQylAd"]')
+        'leave_btn': (By.CSS_SELECTOR, 'button[jsname="CQylAd"]'),
+        'chat_btn': (By.CSS_SELECTOR, 'div[jscontroller="eC6ahc"] button'),
+        'textarea': (By.ID, 'bfTqV')
     }
 
     _DELAY_SECONDS = 1
@@ -236,19 +255,54 @@ class GoogleMeetBot(ConferenceBot):
 
     def join_conference(self: Self) -> None:
         # Joining meeting
+        self._turn_off_microphone_and_camera()
+        self._continue_without_login()
         self._prepare_to_join()
         
         # Closing security pop up
         self._close_popup()
 
     def send_message(self: Self) -> None:
-        pass
+        chat_btn = self._driver.find_element(*self._SELECTORS['chat_btn'])
+        chat_btn.click()
+
+        try:
+            textarea = self._wait.until(
+                EC.visibility_of_element_located(self._SELECTORS['textarea'])
+            )
+        except TimeoutException as e:
+            log.exception(e)
+        else:
+            textarea.send_keys(self._conference.settings.disclaimer_message)
+            textarea.send_keys(Keys.RETURN)
+            chat_btn.click()
+
 
     def leave_conference(self: Self) -> None:
         leave_btn = self._driver.find_element(*self._SELECTORS['leave_btn'])
         leave_btn.click()
 
         self._driver.quit()
+
+    def _turn_off_microphone_and_camera(self: Self) -> None:
+        try:
+            off_micro_btn = self._wait.until(
+                EC.presence_of_element_located(self._SELECTORS['off_micro_btn'])
+            )
+        except TimeoutException as e:
+            log.exception(e)
+        else:
+            off_micro_btn.click()
+        
+    def _continue_without_login(self: Self) -> None:
+        try:
+            btn = self._wait.until(
+                EC.presence_of_element_located(self._SELECTORS['without_account_btn'])
+            )
+        except TimeoutException as e:
+            log.exception(e)
+        else:
+            btn.click()
 
     def _prepare_to_join(self: Self) -> None:
         try:

@@ -1,4 +1,3 @@
-import os
 import secrets
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -9,7 +8,6 @@ import bcrypt
 TOKEN_SIZE = 32
 
 DELTA_DAYS = 3
-TZ = ZoneInfo(os.getenv('TZ'))
 
 ENCODING = 'utf-8'
 
